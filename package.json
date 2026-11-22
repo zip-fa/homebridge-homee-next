@@ -1,0 +1,60 @@
+{
+  "name": "homebridge-homee-next",
+  "displayName": "homee (next)",
+  "version": "0.1.0",
+  "description": "Homebridge platform for homee cubes with first-class Hörmann gate and garage door support",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "homee-test-ui": "dist/ui/server.js"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.*",
+    "!dist/**/*.test-helper.*",
+    "ui",
+    "config.schema.json",
+    "README.md"
+  ],
+  "keywords": [
+    "homebridge-plugin",
+    "homee",
+    "hoermann",
+    "garage",
+    "gate"
+  ],
+  "engines": {
+    "node": "^20.15.0 || ^22 || ^24 || >=26",
+    "homebridge": "^1.8.0 || ^2.0.0"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc",
+    "test": "npm run build && node --test dist/",
+    "typecheck": "tsc --noEmit",
+    "ui": "node dist/ui/server.js",
+    "lint": "eslint . && prettier --check .",
+    "lint:fix": "eslint . --fix && prettier --write .",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "ws": "^8.23.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^26.6.6",
+    "@types/ws": "^8.18.2",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-import-resolver-typescript": "^4.4.5",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-jsonc": "^3.4.2",
+    "eslint-plugin-promise": "^7.3.0",
+    "globals": "^17.14.0",
+    "homebridge": "^2.5.0",
+    "jsonc-eslint-parser": "^3.3.0",
+    "prettier": "^3.10.1",
+    "typescript": "~6.0",
+    "typescript-eslint": "^8.73.0"
+  }
+}

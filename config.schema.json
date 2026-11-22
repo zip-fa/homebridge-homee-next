@@ -1,0 +1,48 @@
+{
+  "pluginAlias": "HomeeNext",
+  "pluginType": "platform",
+  "singular": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "title": "Name",
+        "type": "string",
+        "default": "homee"
+      },
+      "host": {
+        "title": "Cube",
+        "type": "string",
+        "required": true,
+        "description": "IP address or hostname of the homee cube on the local network."
+      },
+      "username": {
+        "title": "Username",
+        "type": "string",
+        "required": true
+      },
+      "password": {
+        "title": "Password",
+        "type": "string",
+        "required": true,
+        "x-schema-form": { "type": "password" }
+      },
+      "group": {
+        "title": "Group",
+        "type": "string",
+        "description": "Only expose devices in this homee group. Leave empty to expose everything supported."
+      },
+      "exclude": {
+        "title": "Excluded node ids",
+        "type": "array",
+        "items": { "type": "integer" }
+      },
+      "deviceName": {
+        "title": "Device name",
+        "type": "string",
+        "placeholder": "homebridge",
+        "description": "How this bridge appears in the homee app's device list."
+      }
+    }
+  }
+}

@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+    <meta
+      name="color-scheme"
+      content="light dark"
+    />
+    <title>homee test console</title>
+    <script>
+      // Applied before first paint so the theme never flashes.
+      (function () {
+        try {
+          var stored = localStorage.getItem('homee-theme');
+          var dark = stored
+            ? stored === 'dark'
+            : matchMedia('(prefers-color-scheme: dark)').matches;
+          document.documentElement.classList.toggle('dark', dark);
+        } catch (e) {}
+      })();
+    </script>
+    <link
+      rel="stylesheet"
+      href="styles.css"
+    />
+  </head>
+  <body>
+    <div class="rail-wrap">
+      <div class="rail">
+        <div class="identity">
+          <h1 class="caps">homee test console</h1>
+          <p
+            id="cube-info"
+            class="caps dim"
+          >
+            not connected
+          </p>
+        </div>
+        <span
+          class="leader"
+          aria-hidden="true"
+        ></span>
+        <span class="link caps">
+          <span
+            id="status-dot"
+            class="dot"
+            aria-hidden="true"
+          ></span>
+          <span id="status">idle</span>
+        </span>
+        <span class="silk">poll 1s</span>
+        <button
+          id="theme"
+          type="button"
+          class="btn ghost sm"
+        >
+          dark
+        </button>
+      </div>
+      <div
+        id="error"
+        class="error-row"
+        hidden
+      >
+        <span class="caps">! cube</span>
+        <span id="error-text"></span>
+      </div>
+    </div>
+
+    <main>
+      <section class="panel">
+        <header class="panel-head">
+          <h2 class="reticle">connection</h2>
+        </header>
+        <form
+          id="connect-form"
+          class="panel-body"
+        >
+          <label
+            ><span class="silk">cube</span>
+            <input
+              name="host"
+              placeholder="192.168.1.20 or homee id"
+              required
+          /></label>
+          <label
+            ><span class="silk">username</span>
+            <input
+              name="username"
+              placeholder="from --username-file"
+          /></label>
+          <label
+            ><span class="silk">password</span>
+            <input
+              name="password"
+              type="password"
+              placeholder="from --password-file"
+          /></label>
+          <div class="row">
+            <button
+              type="submit"
+              class="btn accent"
+            >
+              connect
+            </button>
+            <button
+              type="button"
+              id="disconnect"
+              class="btn"
+            >
+              disconnect
+            </button>
+            <button
+              type="button"
+              id="discover"
+              class="btn"
+            >
+              discover
+            </button>
+          </div>
+          <p
+            id="discover-result"
+            class="dim"
+          ></p>
+        </form>
+      </section>
+
+      <section class="panel">
+        <header class="panel-head">
+          <h2 class="reticle">self-test</h2>
+        </header>
+        <ul
+          id="checklist"
+          class="panel-body"
+        ></ul>
+      </section>
+
+      <section
+        id="gates"
+        class="grid"
+      ></section>
+
+      <section class="panel wide">
+        <header class="panel-head">
+          <h2 class="reticle reticle-dim">other devices</h2>
+        </header>
+        <div
+          id="devices"
+          class="panel-body"
+        ></div>
+      </section>
+
+      <section class="panel wide">
+        <header class="panel-head">
+          <h2 class="reticle reticle-dim">event log</h2>
+          <span class="note">newest first</span>
+        </header>
+        <ol
+          id="log"
+          class="panel-body"
+        ></ol>
+      </section>
+    </main>
+
+    <dialog id="confirm">
+      <form method="dialog">
+        <header class="panel-head">
+          <h2 class="reticle reticle-warn">confirm</h2>
+        </header>
+        <div class="panel-body">
+          <p id="confirm-text"></p>
+          <div class="row">
+            <button
+              value="cancel"
+              class="btn"
+            >
+              cancel
+            </button>
+            <button
+              value="ok"
+              class="btn danger"
+            >
+              yes, send it
+            </button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <script
+      type="module"
+      src="app.js"
+    ></script>
+  </body>
+</html>

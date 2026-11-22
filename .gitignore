@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+.idea/
+.DS_Store
+*.log
+.env*
+# Upstream projects cloned for the review; not part of this package.
+reference/
