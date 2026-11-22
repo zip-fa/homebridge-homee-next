@@ -65,7 +65,7 @@ function confirmAction(text) {
 async function command(text, path, body) {
   if (!(await confirmAction(text))) return;
   try {
-    await api(path, body);
+    await api(path, body ?? {});
   } catch (error) {
     alert(error.message);
   }
