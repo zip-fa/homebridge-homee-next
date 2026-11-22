@@ -9,7 +9,12 @@ import type {
 import { HomeeClient } from '../homee/client.js';
 import type { HomeeNode } from '../homee/types.js';
 import { decode } from '../homee/util.js';
-import { describeNode, nodeName } from '../mapping/index.js';
+import {
+  describeNode,
+  IMPULSE_MOTION_WINDOW_MS,
+  ImpulseTracker,
+  nodeName,
+} from '../mapping/index.js';
 
 import { type AccessoryContext, HomeeAccessory } from './accessory.js';
 
@@ -23,6 +28,8 @@ export interface HomeeNextConfig extends PlatformConfig {
   /** Only expose nodes in this homee group (case-insensitive). */
   group?: string;
   exclude?: number[];
+  /** Gate node ids driven as single-button operators. */
+  impulse?: number[];
   deviceName?: string;
 }
 
@@ -34,6 +41,9 @@ export class HomeePlatform implements DynamicPlatformPlugin {
     PlatformAccessory<AccessoryContext>
   >();
   private readonly active = new Map<number, HomeeAccessory>();
+  private readonly impulse: ReadonlySet<number>;
+  private readonly tracker = new ImpulseTracker();
+  private readonly settleTimers = new Map<number, NodeJS.Timeout>();
 
   constructor(
     public readonly log: Logging,
@@ -41,6 +51,7 @@ export class HomeePlatform implements DynamicPlatformPlugin {
     public readonly api: API,
   ) {
     this.config = config as HomeeNextConfig;
+    this.impulse = new Set(this.config.impulse ?? []);
     for (const key of ['host', 'username', 'password'] as const) {
       if (!this.config[key])
         throw new Error(`homee: "${key}" is missing in the platform config`);
@@ -69,12 +80,30 @@ export class HomeePlatform implements DynamicPlatformPlugin {
         ? this.active.get(node.id)!.refresh()
         : this.sync(),
     );
-    this.client.on('attribute', (attribute) =>
-      this.active.get(attribute.node_id)?.refresh(),
-    );
+    this.client.on('attribute', (attribute) => {
+      this.active.get(attribute.node_id)?.refresh();
+
+      if (this.impulse.has(attribute.node_id))
+        this.refreshAfterMotion(attribute.node_id);
+    });
 
     api.on('didFinishLaunching', () => this.client.start());
-    api.on('shutdown', () => this.client.stop());
+    api.on('shutdown', () => {
+      this.client.stop();
+      for (const timer of this.settleTimers.values()) clearTimeout(timer);
+    });
+  }
+
+  /** Impulse gates count as moving only while their position is fresh; re-read once that lapses. */
+  private refreshAfterMotion(nodeId: number): void {
+    clearTimeout(this.settleTimers.get(nodeId));
+    this.settleTimers.set(
+      nodeId,
+      setTimeout(() => {
+        this.settleTimers.delete(nodeId);
+        this.active.get(nodeId)?.refresh();
+      }, IMPULSE_MOTION_WINDOW_MS + 1000),
+    );
   }
 
   /** Called by Homebridge for every accessory restored from its cache, before didFinishLaunching. */
@@ -93,7 +122,9 @@ export class HomeePlatform implements DynamicPlatformPlugin {
     const added: PlatformAccessory[] = [];
 
     for (const node of nodes) {
-      const spec = describeNode(node);
+      const spec = describeNode(node, {
+        impulse: this.impulse.has(node.id) ? this.tracker : undefined,
+      });
 
       if (!spec) {
         this.log.debug(

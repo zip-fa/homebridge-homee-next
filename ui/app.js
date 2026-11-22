@@ -303,6 +303,20 @@ function gateCard(node, connected) {
             'close',
           ),
         ),
+        h(
+          'label',
+          {
+            class: 'toggle silk',
+            title:
+              'For operators that only answer one button: open and close both send a single pulse',
+          },
+          h('input', {
+            type: 'checkbox',
+            checked: node.impulse,
+            onchange: (event) => toggleImpulse(node.id, event.target.checked),
+          }),
+          'impulse mode',
+        ),
       ),
     ),
     h('details', {}, h('summary', {}, 'homekit mapping'), homekitTable(node)),
@@ -424,6 +438,35 @@ async function connect(connection) {
   formTouched = false;
 }
 
+const IMPULSE_KEY = 'homee-impulse';
+let impulseNodes = [];
+
+async function setImpulse(nodes) {
+  await api('/api/impulse', { nodes });
+  impulseNodes = nodes;
+  try {
+    localStorage.setItem(IMPULSE_KEY, JSON.stringify(nodes));
+  } catch {
+    // private mode: the choice lasts until the server restarts
+  }
+}
+
+function toggleImpulse(nodeId, enabled) {
+  const others = impulseNodes.filter((id) => id !== nodeId);
+
+  setImpulse(enabled ? [...others, nodeId] : others).catch((error) =>
+    alert(error.message),
+  );
+}
+
+try {
+  const stored = JSON.parse(localStorage.getItem(IMPULSE_KEY));
+
+  if (Array.isArray(stored)) setImpulse(stored).catch(() => {});
+} catch {
+  // nothing stored
+}
+
 const remembered = storedConnection();
 let formTouched = Boolean(remembered);
 // A server started without --host has nothing to connect to; reuse the last working credentials once.
@@ -438,6 +481,7 @@ if (remembered) {
 }
 
 function render(state) {
+  impulseNodes = state.impulse;
   setStatus(state.status, STATUS_TONE[state.status]);
   $('#cube-info').textContent = state.cube
     ? `${state.cube.name || 'homee'} · firmware ${state.cube.version} · ${state.host}`

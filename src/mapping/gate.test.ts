@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { afterEach, describe, it, mock } from 'node:test';
 
 import { UpDown } from '../homee/enums.js';
+import type { HomeeNode } from '../homee/types.js';
 
 import { entranceGate, garageDoor } from './fixtures.test-helper.js';
 import {
@@ -9,6 +10,7 @@ import {
   stopWrites,
   targetDoorState,
   writeTargetDoorState,
+  ImpulseTracker,
 } from './gate.js';
 import { HAP } from './hap.js';
 
@@ -119,5 +121,120 @@ describe('gate mapping', () => {
     assert.deepEqual(writeTargetDoorState(Target.OPEN, node), [
       { attributeId: 99, value: 1 },
     ]);
+  });
+});
+
+describe('impulse mode', () => {
+  const T0 = 1_795_370_000;
+  const PULSE = [{ attributeId: 22, value: UpDown.CLOSED }];
+
+  /** A SupraMatic as homee reports it; change times are cube seconds relative to T0. */
+  function door(
+    upDown: [value: number, changedAt: number],
+    position: [value: number, last: number, changedAt: number],
+  ) {
+    const node = garageDoor(upDown[0], position[0]);
+
+    Object.assign(node.attributes[1]!, { last_changed: T0 + upDown[1] });
+    Object.assign(node.attributes[2]!, {
+      last_value: position[1],
+      last_changed: T0 + position[2],
+    });
+
+    return node;
+  }
+
+  const at = (seconds: number) => {
+    mock.timers.reset();
+    mock.timers.enable({ apis: ['Date'], now: (T0 + seconds) * 1000 });
+  };
+
+  afterEach(() => mock.timers.reset());
+
+  it('pulses the close command for both directions, only when needed', () => {
+    at(0);
+    const tracker = new ImpulseTracker();
+    const closed = door([UpDown.CLOSED, -60], [100, 25, -60]);
+    const open = door([UpDown.OPEN, -60], [0, 67, -60]);
+    const write = describeNode(closed, { impulse: tracker })!.services[0]!
+      .characteristics[1]!.write!;
+
+    assert.deepEqual(write(Target.CLOSED, closed), []);
+    assert.deepEqual(write(Target.OPEN, open), []);
+    assert.deepEqual(write(Target.OPEN, closed), PULSE);
+  });
+
+  // Recorded on the real door: open, close, stop mid-way, pulse again.
+  it('follows a measured cycle including a stop', () => {
+    const tracker = new ImpulseTracker();
+    const expectState = (seconds: number, node: HomeeNode, state: number) => {
+      at(seconds);
+      assert.equal(tracker.state(node), state, `t=${seconds}s`);
+    };
+
+    at(0);
+    assert.deepEqual(
+      tracker.write(Target.OPEN, door([UpDown.CLOSED, -60], [100, 25, -60])),
+      PULSE,
+    );
+    // homee echoes "closing" until the first position report.
+    expectState(2, door([UpDown.CLOSING, 0], [100, 25, -60]), Current.OPENING);
+    expectState(7, door([UpDown.OPENING, 7], [67, 100, 7]), Current.OPENING);
+    expectState(19, door([UpDown.OPEN, 19], [0, 61, 19]), Current.OPEN);
+    assert.deepEqual(
+      tracker.write(Target.OPEN, door([UpDown.OPEN, 19], [0, 61, 19])),
+      [],
+    );
+
+    at(22);
+    assert.deepEqual(
+      tracker.write(Target.CLOSED, door([UpDown.OPEN, 19], [0, 61, 19])),
+      PULSE,
+    );
+    expectState(24, door([UpDown.CLOSING, 22], [0, 61, 19]), Current.CLOSING);
+
+    // The stop pulse's echo lands in the same second as a position report.
+    const moving = door([UpDown.CLOSING, 30], [25, 0, 30]);
+
+    at(30);
+    assert.deepEqual(tracker.stop(moving), PULSE);
+    expectState(45, door([UpDown.CLOSING, 30], [25, 0, 30]), Current.STOPPED);
+    expectState(55, door([UpDown.STOPPED, 55], [34, 34, 55]), Current.STOPPED);
+
+    // After a stop the operator reverses: a pulse from here opens, whatever was asked.
+    at(110);
+    const stopped = door([UpDown.STOPPED, 55], [34, 34, 55]);
+
+    assert.deepEqual(tracker.write(Target.CLOSED, stopped), PULSE);
+    expectState(
+      112,
+      door([UpDown.CLOSING, 110], [34, 34, 55]),
+      Current.OPENING,
+    );
+  });
+
+  it('reads pulses sent by the homee app from the echo', () => {
+    const tracker = new ImpulseTracker();
+    const echoed = door([UpDown.CLOSING, 0], [100, 100, -60]);
+
+    at(2);
+    assert.equal(tracker.state(echoed), Current.OPENING);
+    // No position report followed: the pulse did not move the door.
+    at(30);
+    assert.equal(tracker.state(echoed), Current.CLOSED);
+  });
+
+  it('stops only a moving door', () => {
+    at(10);
+    const tracker = new ImpulseTracker();
+
+    assert.deepEqual(
+      tracker.stop(door([UpDown.CLOSED, -60], [100, 25, -60])),
+      [],
+    );
+    assert.deepEqual(
+      stopWrites(door([UpDown.CLOSING, 5], [40, 20, 5]), { impulse: tracker }),
+      PULSE,
+    );
   });
 });

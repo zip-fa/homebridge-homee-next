@@ -16,6 +16,7 @@ import type { HomeeNode } from '../homee/types.js';
 import { decode } from '../homee/util.js';
 import {
   describeNode,
+  ImpulseTracker,
   nodeName,
   snapshot,
   stopWrites,
@@ -57,6 +58,12 @@ const record = (level: LogEntry['level'], message: string) => {
 };
 
 let client: HomeeClient | undefined;
+// Survives reconnects; the browser re-sends its stored choice on load.
+const impulseNodes = new Set<number>();
+const tracker = new ImpulseTracker();
+const options = (nodeId: number) => ({
+  impulse: impulseNodes.has(nodeId) ? tracker : undefined,
+});
 
 async function readSecret(path: string | undefined) {
   return path ? (await readFile(path, 'utf8')).trim() : undefined;
@@ -93,10 +100,11 @@ function connect(host: string, username: string, password: string) {
 }
 
 function nodeView(node: HomeeNode) {
-  const spec = describeNode(node);
+  const spec = describeNode(node, options(node.id));
 
   return {
     id: node.id,
+    impulse: impulseNodes.has(node.id),
     name: nodeName(node),
     note: decode(node.note),
     profile: node.profile,
@@ -135,6 +143,7 @@ function state() {
     nodes: client
       ? [...client.nodes.values()].sort((a, b) => a.id - b.id).map(nodeView)
       : [],
+    impulse: [...impulseNodes],
     log: log.slice(-80),
   };
 }
@@ -159,7 +168,7 @@ function homekitWrite(
   const node = client?.nodes.get(nodeId);
 
   if (!node) throw new HttpError(404, 'unknown node');
-  const spec = describeNode(node);
+  const spec = describeNode(node, options(nodeId));
   const characteristic = spec?.services[
     body.service ?? 0
   ]?.characteristics.find((c) => c.type === body.characteristic);
@@ -211,6 +220,21 @@ async function route(
   const key = `${request.method} ${url.pathname}`;
   const nodeAction = /^POST \/api\/nodes\/(\d+)\/(homekit|stop)$/.exec(key);
 
+  if (key === 'POST /api/impulse') {
+    const { nodes } = await readJson(request);
+
+    if (!Array.isArray(nodes) || !nodes.every(Number.isInteger))
+      throw new HttpError(400, 'nodes must be an array of node ids');
+    impulseNodes.clear();
+    for (const id of nodes as number[]) impulseNodes.add(id);
+    record(
+      'info',
+      `impulse mode: ${nodes.length ? nodes.map((id) => `#${String(id)}`).join(', ') : 'off'}`,
+    );
+
+    return { nodes };
+  }
+
   if (key === 'GET /api/state') return state();
 
   if (key === 'GET /api/discover') return { hosts: await discoverCubes() };
@@ -246,7 +270,7 @@ async function route(
 
       if (!node) throw new HttpError(404, 'unknown node');
 
-      return perform(nodeId, stopWrites(node), 'stop');
+      return perform(nodeId, stopWrites(node, options(nodeId)), 'stop');
     }
 
     return homekitWrite(nodeId, await readJson(request));

@@ -37,6 +37,12 @@
         "type": "array",
         "items": { "type": "integer" }
       },
+      "impulse": {
+        "title": "Impulse-mode gates (node ids)",
+        "type": "array",
+        "items": { "type": "integer" },
+        "description": "For operators that only react to one button (e.g. Hörmann via homee, where Open does nothing and Close toggles). Open and Close then send a single pulse, only when the gate is not already there."
+      },
       "deviceName": {
         "title": "Device name",
         "type": "string",

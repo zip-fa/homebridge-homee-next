@@ -21,6 +21,22 @@ Gates are driven through the `UpDown` attribute when present, falling back to `O
 impulse attribute. `reverse_control_ui` is honoured. If the cube is unreachable, HomeKit shows "No
 Response" rather than stale values.
 
+### Impulse mode
+
+Some Hörmann operators are paired with homee so that only one button works: in the homee app **Open
+does nothing and Close toggles** (open → stop → close, like a single-button remote). homee then also
+echoes the command instead of the real direction until the next position report.
+
+List those gates in `impulse` (node ids are shown in the test console). The plugin then:
+
+- sends the working "close" command as a pulse for both Open and Close in HomeKit, and only when the
+  gate is not already at or heading for that state;
+- derives the state from the position and from the cube's corrections, not from the echoed command.
+
+A pulse while the gate is moving the other way stops it, and the next pulse after a stop reverses
+the last direction — the plugin accounts for both. HomeKit has no stop button, so asking for the
+opposite state mid-way is the only way to stop it from there.
+
 ## Install
 
 ```sh
@@ -36,7 +52,8 @@ Configure it in the Homebridge UI, or add to `config.json`:
   "username": "homee-user",
   "password": "…",
   "group": "HomeKit",
-  "exclude": [12]
+  "exclude": [12],
+  "impulse": [1, 2]
 }
 ```
 
@@ -47,13 +64,15 @@ Configure it in the Homebridge UI, or add to `config.json`:
 | `password`   | yes      | homee password                                                              |
 | `group`      | no       | only expose nodes in this homee group; if it disappears, nothing is removed |
 | `exclude`    | no       | node ids to skip                                                            |
+| `impulse`    | no       | gate node ids driven as single-button operators, see below                  |
 | `deviceName` | no       | name shown in the homee device list (default `homebridge`)                  |
 
 ## Test console
 
 A small local web UI shows what the plugin sees before you wire it into Homebridge: connection
 self-test, every gate with its HomeKit mapping and raw homee attributes, and Open / Stop / Close
-buttons (each behind a confirm dialog).
+buttons (each behind a confirm dialog). The "impulse mode" checkbox on each gate previews the
+`impulse` setting and is remembered by the browser.
 
 ```sh
 npm install && npm run build

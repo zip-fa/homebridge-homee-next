@@ -4,6 +4,15 @@
   "version": "0.1.0",
   "description": "Homebridge platform for homee cubes with first-class Hörmann gate and garage door support",
   "license": "MIT",
+  "author": "zip-fa",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zip-fa/homebridge-homee-next.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zip-fa/homebridge-homee-next/issues"
+  },
+  "homepage": "https://github.com/zip-fa/homebridge-homee-next#readme",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -35,7 +44,8 @@
     "ui": "node dist/ui/server.js",
     "lint": "eslint . && prettier --check .",
     "lint:fix": "eslint . --fix && prettier --write .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "prepublishOnly": "npm run lint && npm test"
   },
   "dependencies": {
     "ws": "^8.23.0"

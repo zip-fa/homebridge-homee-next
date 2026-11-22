@@ -7,6 +7,9 @@ export interface HomeeAttribute {
   maximum: number;
   current_value: number;
   target_value: number;
+  last_value?: number;
+  /** Unix seconds, cube clock. */
+  last_changed?: number;
   unit: string;
   step_value: number;
   editable: number;

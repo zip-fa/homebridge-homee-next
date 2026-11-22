@@ -9,12 +9,17 @@ import { lightMapper, switchMapper } from './switch.js';
 import type {
   AccessoryInfo,
   AccessorySpec,
+  DescribeOptions,
   HapValue,
   Mapper,
 } from './types.js';
 
 export { HAP, hapLabel } from './hap.js';
-export { stopWrites } from './gate.js';
+export {
+  IMPULSE_MOTION_WINDOW_MS,
+  ImpulseTracker,
+  stopWrites,
+} from './gate.js';
 export type * from './types.js';
 
 /** Order matters: the first matching mapper defines the accessory's primary service. */
@@ -38,13 +43,16 @@ export function nodeInfo(node: HomeeNode): AccessoryInfo {
   };
 }
 
-export function describeNode(node: HomeeNode): AccessorySpec | undefined {
+export function describeNode(
+  node: HomeeNode,
+  options: DescribeOptions = {},
+): AccessorySpec | undefined {
   if (node.id < 1) return undefined; // id -1 is the cube itself
 
   const primary = MAPPERS.find((mapper) => mapper.matches(node));
   // Gate status attributes (position, malfunction, …) are already folded into the door service.
   const services = [
-    ...(primary?.services(node) ?? []),
+    ...(primary?.services(node, options) ?? []),
     ...(primary?.kind === 'gate' ? [] : sensorServices(node)),
   ];
 

@@ -1,5 +1,7 @@
 import type { HomeeNode } from '../homee/types.js';
 
+import type { ImpulseTracker } from './gate.js';
+
 export type HapValue = number | boolean;
 
 export interface AttributeWrite {
@@ -35,8 +37,13 @@ export interface AccessorySpec {
   services: ServiceSpec[];
 }
 
+export interface DescribeOptions {
+  /** Drive a gate as a single-button operator: every command is one pulse of the working button. */
+  impulse?: ImpulseTracker;
+}
+
 export interface Mapper {
   kind: AccessorySpec['kind'];
   matches: (node: HomeeNode) => boolean;
-  services: (node: HomeeNode) => ServiceSpec[];
+  services: (node: HomeeNode, options: DescribeOptions) => ServiceSpec[];
 }
